@@ -43,7 +43,10 @@ body >*{float:left}
 				</div>
 			</nav>
 			<div class="columns">
-				<div class="column is-one-fifth" id=layers></div>
+				<aside class="menu column is-one-fifth">
+					<p class="menu-label">Layers</p>
+					<ul class="menu-list" id=layers></ul>
+				</aside>
 				<div class="column"><div class=cnt id=cnt></div></div>
 			</div>
 		</div>
@@ -225,7 +228,7 @@ body >*{float:left}
 				}
 
 				this.element = () => {
-					_div = document.createElement("div");
+					_div = document.createElement("li");
 
 					_div.style.width = this.width + 'px';
 					_div.style.height = this.height + 'px';
@@ -276,7 +279,7 @@ body >*{float:left}
 				}
 
 				this.element = () => {
-					_div = document.createElement("div");
+					_div = document.createElement("li");
 
 					_div.style.width = this.width + 'px';
 					_div.style.height = this.height + 'px';
@@ -412,7 +415,7 @@ body >*{float:left}
 				}
 
 				this.element = () => {
-					_div = document.createElement("div");
+					_div = document.createElement("li");
 					_div.classList.add('text')
 					_div.innerText = 'label'
 					_size(this.size)
