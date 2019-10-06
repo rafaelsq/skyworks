@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Canvas</title>
+		<style>
+@font-face { font-family: Alex Brush; src: url('http://out.rafaelquintela.com/AlexBrush-Regular.ttf'); } 
+@font-face { font-family: Roboto; src: url('http://out.rafaelquintela.com/Roboto-Regular.ttf'); } 
+#layers > *{background: #f8f8f8; padding:10px; margin-bottom: 10px}
+.cnt {position:relative; touch-action:none}
+.cnt > * {position:absolute; display: block; background-size:contain}
+.text{font-family: Alex Brush; color:white; white-space:nowrap; text-align:left; }
+.text.checked{font-family: Roboto}
+/*
+#cv{border:1px solid red}
+body >*{float:left}
+.cnt {position:relative; box-shadow:0 0 5px gray; touch-action:none}
+.cnt {background: url("http://out.rafaelquintela.com/bg.png") repeat}
+*/
+		</style>
+		<script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.css" integrity="sha256-ujE/ZUB6CMZmyJSgQjXGCF4sRRneOimQplBVLu8OU5w=" crossorigin="anonymous" />
+	</head>
+	<body>
+		<div class="container is-fluid">
+			<nav class="level">
+				<div class="level-left">
+					<div class="level-item">
+						<p class="subtitle is-5"><strong>Sky</strong>Works</p>
+					</div>
+				</div>
+				<div class="level-right">
+					<p class="level-item"><span class="icon" id="div"><i class="fas fa-vector-square"></i></span></p>
+					<div class="level-item">
+						<div class="file">
+							<input class="file-input" id="file" type="file" name="resume" />
+							<span class="icon"><i class="fas fa-upload"></i></span>
+						</div>
+					</div>
+					<p class="level-item"><span class="icon" id="text"><i class="fas fa-font"></i></span></p>
+					<p class="level-item"><span class="icon has-text-info" id="download"><i class="fas fa-save"></i></span></p>
+				</div>
+			</nav>
+			<div class="columns">
+				<div class="column is-one-fifth" id=layers></div>
+				<div class="column"><div class=cnt id=cnt></div></div>
+			</div>
+		</div>
+		<script>
+			var targ, offsetX, offsetY, coordX, coordY, drag;
+
+			var layers = document.getElementById("layers");
+			var cnt = document.getElementById("cnt");
+			var down = document.getElementById("download");
+
+			var file = document.getElementById("file");
+			var text = document.getElementById("text");
+			var btDiv = document.getElementById("div");
+
+			var Layers = [];
+
+			const startDrag = e => {
+				targ = e.target ? e.target : e.srcElement;
+
+				if (targ.className.search(/(^|\s)drag(\s|$)/) == -1) {return};
+
+				e.preventDefault();
+
+				var c = e.touches ? e.touches[0] : e;
+
+				// calculate event X, Y coordinates
+				offsetX = c.clientX
+				offsetY = c.clientY
+
+				// assign default values for top and left properties
+				if(!targ.style.left) targ.style.left='0px';
+				if (!targ.style.top) targ.style.top='0px';
+
+				// calculate integer values for top and left properties
+				coordX = parseInt(targ.style.left);
+				coordY = parseInt(targ.style.top);
+				drag = true;
+
+				document.onmousemove = dragDiv;
+				document.ontouchmove = dragDiv;
+
+				return false;
+			}
+
+			const dragDiv = e => {
+				if (!drag) return;
+				var c = e.touches ? e.touches[0] : e;
+
+				var bg  = Layers[0],
+					cu = Layers[targ.i];
+
+				cu.x = Math.max(coordX + (c.clientX || targ.offsetLeft)-offsetX, 0);
+				cu.y = Math.max(coordY + (c.clientY || targ.offsetTop)-offsetY, 0);
+
+				cu.x = Math.min(cu.x, bg.width * bg.ratio - cu.width * cu.ratio)
+				cu.y = Math.min(cu.y, bg.height * bg.ratio - cu.height * cu.ratio)
+
+				targ.style.left = cu.x + 'px';
+				targ.style.top = cu.y + 'px';
+
+				return false;
+			}
+
+			const stopDrag = () => {
+				drag = false;
+			}
+
+			window.onload = () => {
+				document.onmousedown = startDrag;
+				document.onmouseup = stopDrag;
+
+				document.ontouchstart = startDrag
+				document.ontouchend = stopDrag;
+			}
+
+			const ADD = obj => {
+				var el = obj.element()
+
+				el.i = Layers.length
+				el.classList.add("drag")
+
+				cnt.appendChild(el)
+
+				layers.appendChild(obj.layer())
+
+				if (obj.onCreate) obj.onCreate()
+
+				Layers.push(obj)
+			}
+
+			// add div
+			btDiv.onclick = () => {
+				ADD(new DIV())
+			}
+
+			// add txt
+			text.onclick = () => {
+				ADD(new TXT())
+			}
+
+			// add img
+			file.onchange = e => {
+				if (e.target.files && e.target.files[0]) {
+					var reader = new FileReader();
+					reader.onload = e => {
+						var img = new Image();
+						img.onload = e => {
+							ADD(new IMG(img))
+							file.value = null
+						}
+						img.src = e.target.result;
+					}
+					reader.readAsDataURL(e.target.files[0]);
+				}
+			}
+
+			// download
+			down.onclick = () => {
+				var cv = document.createElement("canvas");
+
+				cv.width = Layers[0].width * Layers[0].ratio;
+				cv.height = Layers[0].height * Layers[0].ratio;
+
+				cx = cv.getContext("2d");
+				for (let l of Layers) {
+					l.render(cx)
+				}
+
+				// save image as png
+				var link = document.createElement('a');
+				link.download = "imagem.png";
+				// link.href = cv.toDataURL("image/png").replace("image/png", "image/octet-stream");;
+				// link.click();
+				cv.toBlob(b => {
+					link.href = URL.createObjectURL(b)
+					link.click();
+				})
+			}
+
+
+			const IMG = (function(img) {
+				this.x = 0
+				this.y = 0
+				this.ratio = 1
+				this.type = 'img'
+				this.width = img.width
+				this.height = img.height
+
+				var _div;
+
+				this.render = ctx => {
+					ctx.drawImage(img, this.x, this.y, this.width*this.ratio, this.height*this.ratio);
+				}
+
+				this.layer = () => {
+					var div = document.createElement("div");
+					div.className = "img"
+
+					var label = document.createElement("label");
+					label.innerText = this.width * this.ratio + 'x' + this.height * this.ratio;
+
+					var range = document.createElement("input");
+					range.type = "range";
+					range.min = 0.1
+					range.max = 2
+					range.step = 0.1
+					range.value = 1
+					range.oninput = e => {
+						this.ratio = e.target.value
+						_div.style.width = this.width * this.ratio + 'px';
+						_div.style.height = this.height * this.ratio + 'px';
+						label.innerText = this.width * this.ratio + 'x' + this.height * this.ratio;
+					}
+
+					div.appendChild(range)
+					div.appendChild(label)
+
+					return div
+				}
+
+				this.element = () => {
+					_div = document.createElement("div");
+
+					_div.style.width = this.width + 'px';
+					_div.style.height = this.height + 'px';
+					_div.style.backgroundImage = 'url("'+img.src+'")';
+
+					return _div
+				}
+			})
+
+			const DIV = (function() {
+				this.x = 0
+				this.y = 0
+				this.type = 'div'
+				this.ratio = 1
+				this.width = 100
+				this.height = 60
+
+				var _div;
+
+				this.render = ctx => {}
+
+				this.layer = () => {
+					var div = document.createElement("div");
+
+					var width = document.createElement("input");
+					width.className = "input"
+					width.type = "number"
+					width.value = this.width
+					width.oninput = e => {
+						this.width = e.target.value
+						_div.style.width = this.width + 'px';
+					}
+
+					var height = document.createElement("input");
+					height.className = "input"
+					height.type = "number"
+					height.value = this.height
+					height.oninput = e => {
+						this.height = e.target.value
+						_div.style.height = this.height + 'px';
+					}
+
+					div.appendChild(width)
+					div.appendChild(document.createElement("br"))
+					div.appendChild(height)
+
+					return div
+				}
+
+				this.element = () => {
+					_div = document.createElement("div");
+
+					_div.style.width = this.width + 'px';
+					_div.style.height = this.height + 'px';
+					_div.style.background = 'url("http://out.rafaelquintela.com/bg.png") repeat';
+
+					return _div
+				}
+			})
+
+			const TXT = (function() {
+				this.x = 0
+				this.y = 0
+				this.ratio = 1
+				this.type = 'txt'
+				this.width = 0
+				this.height = 0
+				this.size = 30
+				this.color = "#ffffff"
+				this.shadow = true
+				this.bold = false
+
+				var _div,
+					_alex = true
+
+				const _size = px => {
+					this.size = px
+					_div.style.fontSize = px + 'px';
+					_div.style.lineHeight = px + 'px';
+				}
+
+				const _color = color => {
+					this.color = color
+					_div.style.color = color
+				}
+
+				const _dim = () => {
+					this.width = _div.offsetWidth
+					this.height = _div.offsetHeight
+				}
+
+				const _shadow = has => {
+					_div.style.textShadow = has? '0 0 3px rgba(0,0,0,0.5)': ''
+					this.shadow = has
+				}
+
+				const _bold = is => {
+					_div.style.fontWeight = is? 'bold': 'normal'
+					this.bold = is
+				}
+
+				this.render = ctx => {
+					cx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+					cx.shadowBlur = 3
+					cx.font = (this.bold? 'bold ': 'normal ') + this.size + (_alex ? 'px Alex Brush' : 'px Roboto');
+					cx.fillStyle = this.color;
+					cx.textAlign = "left";
+					cx.textBaseline = 'top'
+					cx.fillText(_div.innerText, this.x, this.y, this.width, this.height); 
+				}
+
+				this.layer = () => {
+					var div = document.createElement("div")
+
+					var label = document.createElement("input")
+					label.className = "input"
+					label.type = "text"
+					label.value = "label"
+					label.oninput = e => {
+						_div.innerText = e.target.value
+						_dim()
+					}
+
+					var bold = document.createElement("input")
+					bold.className = "checkbox"
+					bold.type = "checkbox"
+					bold.checked = this.bold
+					bold.onchange = e => {
+						_bold(e.target.checked)
+					}
+
+					var shadow = document.createElement("input")
+					shadow.className = "checkbox"
+					shadow.type = "checkbox"
+					shadow.checked = _alex
+					shadow.onchange = e => {
+						_shadow(e.target.checked)
+					}
+
+					var font = document.createElement("input")
+					font.className = "checkbox"
+					font.type = "checkbox"
+					font.checked = true
+					font.onchange = e => {
+						_div.classList[e.target.checked ? "remove" : "add"]("checked")
+						_alex = e.target.checked
+						_dim();
+					}
+
+					var range = document.createElement("input");
+					range.type = "range";
+					range.min = 12
+					range.max = 98
+					range.step = 1
+					range.value = this.size
+					range.oninput = e => {
+						_size(e.target.value)
+						_dim()
+					}
+					
+					var color = document.createElement("input");
+					color.className = "input"
+					color.type = "text"
+					color.maxlength = 7
+					color.value = this.color
+					color.oninput = e => {
+						_color(e.target.value)
+					}
+
+					div.appendChild(label)
+					div.appendChild(document.createElement("br"))
+					div.appendChild(bold)
+					div.appendChild(shadow)
+					div.appendChild(font)
+					div.appendChild(range)
+					div.appendChild(document.createElement("br"))
+					div.appendChild(color)
+
+					return div
+				}
+
+				this.onCreate = () => {
+					_dim()
+				}
+
+				this.element = () => {
+					_div = document.createElement("div");
+					_div.classList.add('text')
+					_div.innerText = 'label'
+					_size(this.size)
+					_color(this.color)
+					_shadow(this.shadow)
+					_bold(this.bold)
+					return _div
+				}
+			})
+			// https://levelup.gitconnected.com/how-to-make-an-app-with-drag-and-drop-with-vue-js-35f7a3739ae1
+		</script>
+	</body>
+</html>
